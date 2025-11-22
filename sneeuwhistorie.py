@@ -15,7 +15,7 @@ st.set_page_config(
 LAT = 62.9977
 LON = 17.0811
 TIMEZONE = 'Europe/Stockholm'
-MAX_HISTORICAL_YEAR = datetime.date.today().year # Dit is nu 2025
+MAX_HISTORICAL_YEAR = datetime.date.today().year 
 
 # Maximale datum is gisteren, omdat historische data niet recenter kan zijn
 MAX_DATE_SELECTABLE = datetime.date.today() - datetime.timedelta(days=1)
@@ -91,7 +91,8 @@ def get_all_historical_data(lat, lon, start_date_api, end_date_api, chunk_size_y
         # Bepaal het werkelijke einde van de chunk
         chunk_end = min(chunk_end_candidate, end_date)
 
-        st.toast(f"Laden data van: {current_start.strftime('%d-%m-%Y')} t/m {chunk_end.strftime('%d-%m-%Y')}")
+        # DE CACHEREPLAYCLOSUREERROR FIX: st.toast VERWIJDERD UIT DE CACHED FUNCTIE
+        # st.toast(f"Laden data van: {current_start.strftime('%d-%m-%Y')} t/m {chunk_end.strftime('%d-%m-%Y')}")
         
         chunk_df = fetch_single_period_data(lat, lon, current_start.strftime("%Y-%m-%d"), chunk_end.strftime("%Y-%m-%d"))
 
@@ -143,7 +144,7 @@ def get_seasonal_ordinal(date):
         
         return date.timetuple().tm_yday + days_in_prev_second_half
 
-# --- RECORD CALCULATIE FUNCTIE (NU ZONDER PANDAS WARNINGS) ---
+# --- RECORD CALCULATIE FUNCTIE ---
 # ===============================================================================
 
 def calculate_snow_records(df):
@@ -259,12 +260,12 @@ start_year = st.sidebar.number_input(
     key="record_start_year"
 )
 
-# Aangepaste input: max_value is nu MAX_HISTORICAL_YEAR (huidig jaar) om het laatste complete seizoen te pakken
+# Maximale waarde is het huidige jaar om het laatste complete seizoen te pakken.
 end_year = st.sidebar.number_input(
     "Eindjaar seizoen (Max. Huidig jaar, einde op 30 juni):", 
     min_value=start_year, 
-    max_value=MAX_HISTORICAL_YEAR, # MAXIMALE WAARDE IS NU HET HUIDIGE JAAR (2025)
-    value=MAX_HISTORICAL_YEAR, # DEFAULT WAARDE IS NU HET HUIDIGE JAAR (2025)
+    max_value=MAX_HISTORICAL_YEAR, 
+    value=MAX_HISTORICAL_YEAR,
     step=1, 
     key="record_end_year"
 )
@@ -297,7 +298,7 @@ if full_data is not None:
             
         st.markdown("---")
         
-        # Kolom 2: Vroegste en Laatste Sneeuw (Nu opgedeeld in vier kolommen)
+        # Kolom 2: Vroegste en Laatste Sneeuw 
         st.subheader("Records voor Start en Einde van het Seizoen")
         col3, col4, col5, col6 = st.columns(4)
 
@@ -336,7 +337,6 @@ st.markdown("---")
 st.sidebar.header("Detail Periode Selectie")
 
 # Default periode: laatste maand van het vorige jaar
-# Let op: De detailanalyse gebruikt de geselecteerde MAX_HISTORICAL_YEAR - 1 (2024) als default voor het detailvenster
 default_start = datetime.date(MAX_HISTORICAL_YEAR - 1, 12, 1)
 default_end = datetime.date(MAX_HISTORICAL_YEAR - 1, 12, 31)
 

@@ -164,13 +164,22 @@ def calculate_snow_records(df):
     snow_days = temp_df[temp_df['Max Sneeuwdiepte (cm)'] > 0.0]
     
     if snow_days.empty:
-        return None 
+        # We moeten de records wel teruggeven, ook al zijn ze leeg. Alleen stoppen als er echt GEEN data is.
+        # Bij geen sneeuwdek zal de max overal 0 zijn, dus dit is een geldig resultaat.
+        # De 'Absoluut Langste Periode' moet dan wel correct afgehandeld worden.
+        pass
 
     results = {}
     
     # 1. Top 10 Seizoenen met Hoogste Maximum Sneeuwhoogte
     yearly_max = temp_df.groupby('Seizoen')['Max Sneeuwdiepte (cm)'].max().sort_values(ascending=False).head(10)
     results['Top 10 Hoogste Max'] = yearly_max.reset_index().rename(columns={'Max Sneeuwdiepte (cm)': 'Max (cm)'})
+    
+    ### NIEUWE SECTIE: 1b. Top 10 Seizoenen met Laagste Maximum Sneeuwhoogte ###
+    # We gebruiken min() om de max diepte te vinden (dit zal 0.0 zijn als er geen sneeuw was in het seizoen, anders de laagste max diepte die bereikt werd)
+    # en sorteren dan oplopend. Seizoenen met 0.0 cm staan bovenaan.
+    yearly_min_max = temp_df.groupby('Seizoen')['Max Sneeuwdiepte (cm)'].max().sort_values(ascending=True).head(10)
+    results['Top 10 Laagste Max'] = yearly_min_max.reset_index().rename(columns={'Max Sneeuwdiepte (cm)': 'Max (cm)'})
     
     
     # --- Voorbereiding: Vroegste en Laatste Sneeuw Dag per Seizoen ---
@@ -212,8 +221,17 @@ def calculate_snow_records(df):
 
 
     # 6. Top 10 Meeste Dagen met Sneeuwdek per Seizoen
-    snow_days_per_season = snow_days.groupby('Seizoen').size().sort_values(ascending=False).head(10)
+    snow_days_per_season = temp_df[temp_df['Max Sneeuwdiepte (cm)'] > 0.0].groupby('Seizoen').size().sort_values(ascending=False).head(10)
     results['Top 10 Meeste Dagen'] = snow_days_per_season.reset_index().rename(columns={0: 'Aantal Dagen'})
+    
+    ### NIEUWE SECTIE: 6b. Top 10 Minste Dagen met Sneeuwdek per Seizoen ###
+    # We moeten alle seizoenen meenemen, ook die met 0 dagen sneeuw.
+    # Eerst tellen we de sneeuwdagen
+    snow_days_count = temp_df[temp_df['Max Sneeuwdiepte (cm)'] > 0.0].groupby('Seizoen').size()
+    # Dan vullen we de seizoenen zonder sneeuw aan met 0 dagen.
+    all_seasons = temp_df['Seizoen'].unique()
+    snow_days_per_season_all = pd.Series(snow_days_count, index=all_seasons).fillna(0).sort_values(ascending=True).head(10)
+    results['Top 10 Minste Dagen'] = snow_days_per_season_all.reset_index().rename(columns={'index': 'Seizoen', 0: 'Aantal Dagen'})
     
     
     # 7. Langste onafgebroken periode met sneeuwdek (ABSOLUUT RECORD over de HELE ANALYSEPERIODE)
@@ -236,6 +254,9 @@ def calculate_snow_records(df):
         
         # 8. Totaal aantal dagen met sneeuw (over de hele periode)
         results['Totaal Dagen met Sneeuw'] = snow_days.shape[0]
+    else:
+        results['Absoluut Langste Periode'] = "0 dagen (Geen sneeuwdek in periode)"
+        results['Totaal Dagen met Sneeuw'] = 0
 
     return results
 
@@ -285,20 +306,33 @@ if full_data is not None:
     
     if records:
         
+        # --- Eerste rij: Hoogste/Laagste Max Diepte ---
         col1, col2 = st.columns(2)
         
-        # Kolom 1: Max Diepte en Aantal Dagen
         with col1:
             st.subheader("Hoogste Max Sneeuwdiepte")
             st.dataframe(records['Top 10 Hoogste Max'], width='stretch', hide_index=True)
 
         with col2:
-            st.subheader("Meeste Dagen met Sneeuwdek")
-            st.dataframe(records['Top 10 Meeste Dagen'], width='stretch', hide_index=True)
+            st.subheader("Laagste Max Sneeuwdiepte") # NIEUW
+            st.dataframe(records['Top 10 Laagste Max'], width='stretch', hide_index=True) # NIEUW
             
         st.markdown("---")
         
-        # Kolom 2: Vroegste en Laatste Sneeuw 
+        # --- Tweede rij: Meeste/Minste Dagen met Sneeuwdek ---
+        col_most, col_least = st.columns(2)
+
+        with col_most:
+            st.subheader("Meeste Dagen met Sneeuwdek")
+            st.dataframe(records['Top 10 Meeste Dagen'], width='stretch', hide_index=True)
+
+        with col_least:
+            st.subheader("Minste Dagen met Sneeuwdek") # NIEUW
+            st.dataframe(records['Top 10 Minste Dagen'], width='stretch', hide_index=True) # NIEUW
+            
+        st.markdown("---")
+
+        # --- Derde rij: Vroegste en Laatste Sneeuw --- 
         st.subheader("Records voor Start en Einde van het Seizoen")
         col3, col4, col5, col6 = st.columns(4)
 
@@ -327,7 +361,7 @@ if full_data is not None:
         )
             
     else:
-        st.warning(f"Geen sneeuwdek gevonden in de seizoenen van {start_year} t/m {end_year}.")
+        st.warning(f"Geen data of berekening mogelijk voor de seizoenen van {start_year} t/m {end_year}.")
         
 st.markdown("---")
 st.markdown("---")
